@@ -1,0 +1,37 @@
+@startuml
+title "Диаграмма внедрения кеширования в операции чтения списка заказов и изменения статуса заказа"
+
+actor Actor
+participant MES_UI
+participant MES_API
+participant Cache
+participant Database
+participant PubSub
+
+== Чтение списка заказов ==
+
+Actor -> MES_UI: Запрос на просмотр списка заказов
+MES_UI -> MES_API: Запрос списка заказов
+MES_API -> Cache: Проверка данных в кеш
+alt попадание
+    Cache --> MES_API: Возврат списка заказов
+else промах
+    MES_API -> Database: Запрос списка заказов
+    Database --> MES_API: Возврат списка заказов
+    MES_API -> Cache: Запись списка заказов в кеш
+end
+MES_API --> MES_UI: Возврат списка заказов
+MES_UI --> Actor: Отображение списка заказов
+
+== Изменение статуса заказа пользователем ==
+
+Actor -> MES_UI: Изменение статуса заказа
+MES_UI -> MES_API: Обновление статуса заказа
+MES_API -> Database: Запись нового статуса в БД
+Database --> MES_API: Подтверждение обновления
+MES_API -> PubSub: Отправка события об изменении статуса
+PubSub -> Cache: Удаление устаревших данных из кеша
+MES_API --> MES_UI: Подтверждение изменения статуса
+MES_UI --> Actor: Отображение обновленного заказа
+
+@enduml
